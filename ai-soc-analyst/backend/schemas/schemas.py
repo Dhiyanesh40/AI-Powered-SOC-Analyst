@@ -15,6 +15,9 @@ class UploadResponse(BaseModel):
 
     filename: str
     total_records: int
+    num_columns: int
+    columns: list[str]
+    preview: list[dict]
     status: str
 
 
