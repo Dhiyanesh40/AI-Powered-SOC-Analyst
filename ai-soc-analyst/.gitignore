@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+venv/
+.venv/
+*.db
+*.sqlite3
+
+# Environment
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.cache/
+
+# ML artifacts
+ml/data/raw/
+ml/data/processed/
+ml/models/*.joblib
+ml/models/*.pkl
+
+# ChromaDB
+knowledge_base/store/
+
+# Logs
+*.log

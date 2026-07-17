@@ -1,0 +1,25 @@
+{
+  "techniques": [
+    {
+      "id": "T1498",
+      "name": "Network Denial of Service (DoS)",
+      "tactic": "Impact",
+      "description": "Adversaries may perform Network Denial of Service (DoS) attacks to disrupt availability of system, service, or network infrastructure. Network DoS attacks are commonly performed by flooding network resources with packet traffic. Techniques include UDP Flooding, SYN Flooding, ICMP Flooding, and application-layer request floods like DDoS Hulk.",
+      "mitigation": "Configure rate limiting on firewalls, deploy Web Application Firewalls (WAF) to filter application-layer requests, and apply SYN cookies at the operating system level to prevent half-open connection slot depletion."
+    },
+    {
+      "id": "T1110",
+      "name": "Brute Force",
+      "tactic": "Credential Access",
+      "description": "Adversaries may use brute force attacks to obtain valid credentials for accounts. Brute force consists of testing combinations of passwords or passphrases against authentication interfaces until access is granted. Popular variants include FTP brute forcing (FTP-Patator) and SSH brute forcing (SSH-Patator).",
+      "mitigation": "Enforce strong password complexity rules, configure multi-factor authentication (MFA), implement account lockouts after 5 consecutive failed attempts, and restrict remote console ports (e.g., SSH Port 22, FTP Port 21) using firewall rule whitelists."
+    },
+    {
+      "id": "T1046",
+      "name": "Network Service Discovery (PortScan)",
+      "tactic": "Discovery",
+      "description": "Adversaries may attempt to get a listing of services running on remote hosts, including vulnerable versions of active services. Scanning methods include SYN scans, TCP Connect scans, UDP scans, and ping sweeps to discover open ports and alive machines.",
+      "mitigation": "Minimize public-facing system services, configure firewalls to block scanning patterns, implement Intrusion Prevention System (IPS) rules to detect high frequency port connection attempts from a single source IP, and set up tarpits to delay scanning."
+    }
+  ]
+}

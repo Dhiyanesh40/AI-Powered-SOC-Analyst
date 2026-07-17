@@ -1,0 +1,16 @@
+{
+  "cves": [
+    {
+      "id": "CVE-2014-0160",
+      "name": "Heartbleed Bug",
+      "summary": "The Heartbleed bug is a serious vulnerability in the popular OpenSSL cryptographic software library. This weakness allows stealing the information protected, under normal conditions, by the SSL/TLS encryption used to secure the Internet. It exposes memory content from OpenSSL servers, allowing attackers to leak sensitive key material, credentials, and data packets via malformed TLS heartbeat requests.",
+      "mitigation": "Upgrade OpenSSL to version 1.0.1g or higher. Revoke compromised SSL/TLS certificates and issue new private keys."
+    },
+    {
+      "id": "CVE-2021-44228",
+      "name": "Log4Shell",
+      "summary": "Apache Log4j2 versions 2.0-beta9 to 2.15.0-rc1 JNDI features used in configuration, log messages, and parameters do not protect against attacker controlled LDAP and other JNDI related endpoints. An attacker who can control log messages or log message parameters can execute arbitrary code loaded from LDAP servers when message lookup substitution is enabled.",
+      "mitigation": "Upgrade Log4j to version 2.15.0 or 2.16.0. Set the system property 'log4j2.formatMsgNoLookups' to true, or remove the JndiLookup class from the classpath."
+    }
+  ]
+}
