@@ -1,6 +1,7 @@
 import logging
 import os
 import uuid
+import shutil
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
@@ -19,6 +20,14 @@ UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 
+def count_file_lines(file_path: Path) -> int:
+    """Efficiently count lines in a large file without loading it into memory."""
+    with open(file_path, "rb") as f:
+        # Count newline characters in blocks
+        lines = sum(buf.count(b'\n') for buf in iter(lambda: f.read(1024 * 1024), b''))
+    return lines
+
+
 @router.post("/", response_model=UploadResponse)
 async def upload_csv(
     file: UploadFile = File(...),
@@ -29,8 +38,8 @@ async def upload_csv(
 
     Sprint 2: 
     - Validates file type.
-    - Saves uniquely inside uploads/ directory.
-    - Reads with Pandas to extract rows, cols, preview.
+    - Saves uniquely inside uploads/ directory using chunked streaming.
+    - Reads with Pandas efficiently to prevent memory crashes on large files.
     - Stores metadata in the AnalysisResult (metadata) table.
     """
     if not file.filename.endswith(".csv"):
@@ -42,29 +51,37 @@ async def upload_csv(
     unique_filename = f"{uuid.uuid4()}_{file.filename}"
     file_path = UPLOAD_DIR / unique_filename
 
-    # Save file
+    # Save file efficiently in chunks to prevent memory overload
     try:
-        content = await file.read()
-        with open(file_path, "wb") as f:
-            f.write(content)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
     except Exception as e:
         logger.error(f"Failed to save file: {e}")
         raise HTTPException(status_code=500, detail="Failed to save uploaded file.")
+    finally:
+        file.file.close()
 
-    # Read CSV with pandas
+    # Process CSV efficiently
     try:
-        df = pd.read_csv(file_path)
+        # Read only the first 10 rows to extract columns and preview
+        df_preview = pd.read_csv(file_path, nrows=10)
     except Exception as e:
-        logger.error(f"Failed to read CSV: {e}")
+        logger.error(f"Failed to read CSV preview: {e}")
+        # Clean up the bad file
+        if file_path.exists():
+            file_path.unlink()
         raise HTTPException(status_code=400, detail="Uploaded file is not a valid CSV or is unreadable.")
     
-    total_records = len(df)
-    num_columns = len(df.columns)
-    columns = df.columns.tolist()
+    num_columns = len(df_preview.columns)
+    columns = df_preview.columns.tolist()
     
     # Fill NaNs with None to ensure JSON serialization works
-    df_preview = df.head(10).where(pd.notnull(df), None)
+    df_preview = df_preview.where(pd.notnull(df_preview), None)
     preview = df_preview.to_dict(orient="records")
+
+    # Efficiently count total records (subtracting 1 for the header)
+    total_lines = count_file_lines(file_path)
+    total_records = max(0, total_lines - 1)
 
     # Store metadata. The instruction explicitly said "Store upload metadata in the SecurityLog table" 
     from models.security_log import SecurityLog
