@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, func
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float, func
 
 from db.base import Base
 
@@ -21,4 +21,7 @@ class AnalysisResult(Base):
     severity          = Column(String(20),  nullable=True)   # critical, high, medium, low
     attack_types      = Column(Text,        nullable=True)   # comma-separated list
     summary           = Column(Text,        nullable=True)   # human-readable summary
+    processing_time   = Column(Float,       nullable=True)   # total duration in seconds
+    average_confidence= Column(Float,       nullable=True)   # model confidence average
+    attack_distribution= Column(Text,       nullable=True)   # JSON string of threat distribution
     created_at        = Column(DateTime,    server_default=func.now())

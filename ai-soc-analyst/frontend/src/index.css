@@ -4,7 +4,7 @@
 
 /* ── Global Base Styles ── */
 body {
-  @apply bg-soc-bg text-slate-100 font-sans antialiased;
+  @apply bg-soc-bg text-slate-50 font-sans antialiased;
   min-height: 100vh;
 }
 
@@ -14,12 +14,12 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: #0B1220;
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: rgba(255,255,255,0.1);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: rgba(255,255,255,0.2);
 }

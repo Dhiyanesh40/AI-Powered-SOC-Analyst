@@ -14,11 +14,15 @@ export const uploadLogs = async (file) => {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await axios.post(
-    "http://127.0.0.1:8000/api/upload",
-    formData
-  );
+  const response = await axios.post("http://127.0.0.1:8000/api/upload", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 
+  return response.data;
+};
+
+export const getLatestUpload = async () => {
+  const response = await api.get("/api/upload/latest");
   return response.data;
 };
 

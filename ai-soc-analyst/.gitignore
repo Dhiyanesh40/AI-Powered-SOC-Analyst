@@ -1,43 +1,20 @@
 # Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.egg-info/
-dist/
-build/
-*.egg
 venv/
-.venv/
-*.db
-*.sqlite3
+__pycache__/
+*.pyc
 
-# Environment
-.env
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Node / Frontend
+# Node
 node_modules/
-frontend/dist/
-frontend/.cache/
 
-# ML artifacts
-ml/data/raw/
-ml/data/processed/
-ml/models/*.joblib
-ml/models/*.pkl
+# Uploads
+backend/uploads/
 
-# ChromaDB
-knowledge_base/store/
+# Database
+backend/*.db
 
 # Logs
 *.log
+
+# Environment
+.env
+frontend/dist/

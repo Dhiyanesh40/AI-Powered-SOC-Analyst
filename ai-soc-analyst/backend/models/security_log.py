@@ -1,27 +1,24 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, func
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text, func
 
 from db.base import Base
 
 
 class SecurityLog(Base):
     """
-    Represents a single network flow record ingested from a CICIDS2017 CSV.
-
-    Each row in the uploaded CSV becomes one SecurityLog entry.
-    The ML model will populate the `prediction` and `confidence` fields
-    in Sprint 2. Until then, they default to empty / zero.
+    Audit Log for the AI SOC Analyst application.
+    
+    Each record represents one event in the analysis pipeline.
+    Reused from Sprint 1 network flow storage as per requirements.
     """
 
     __tablename__ = "security_logs"
 
-    id          = Column(Integer, primary_key=True, autoincrement=True)
-    source_ip   = Column(String(45),  nullable=False)
-    dest_ip     = Column(String(45),  nullable=False)
-    source_port = Column(Integer,     nullable=False)
-    dest_port   = Column(Integer,     nullable=False)
-    protocol    = Column(String(10),  nullable=False, default="TCP")
-    timestamp   = Column(String(30),  nullable=True)
-    label       = Column(String(100), nullable=True)   # ground-truth label from dataset
-    prediction  = Column(String(100), nullable=True)   # ML model output (Sprint 2)
-    confidence  = Column(Float,       nullable=True, default=0.0)
-    created_at  = Column(DateTime,    server_default=func.now())
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    analysis_id = Column(Integer, nullable=True)
+    dataset_filename = Column(String(255), nullable=False)
+    timestamp = Column(DateTime, server_default=func.now())
+    event_type = Column(String(100), nullable=False)
+    current_stage = Column(String(100), nullable=False)
+    status = Column(String(50), nullable=False)
+    duration = Column(Float, nullable=True)
+    details = Column(Text, nullable=True)

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   UploadCloud,
   FileUp,
@@ -10,8 +10,11 @@ import {
   Zap,
   TrendingUp,
   AlertTriangle,
+  FileText,
+  Clock,
+  Cpu
 } from "lucide-react";
-import { uploadLogs, analyzeLogs } from "../services/api";
+import { uploadLogs, analyzeLogs, getLatestUpload } from "../services/api";
 import {
   PieChart,
   Pie,
@@ -23,7 +26,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 
 /**
@@ -36,7 +38,6 @@ import {
 const CHART_COLORS = [
   "#06b6d4", "#8b5cf6", "#f43f5e", "#f59e0b", "#10b981",
   "#3b82f6", "#ec4899", "#14b8a6", "#f97316", "#6366f1",
-  "#84cc16", "#e11d48", "#0ea5e9", "#a855f7", "#22c55e",
 ];
 
 const SEVERITY_COLORS = {
@@ -46,6 +47,42 @@ const SEVERITY_COLORS = {
   Low: "text-green-400 bg-green-500/10 border-green-500/30",
 };
 
+const THREAT_EMOJIS = {
+  Critical: "🔴 CRITICAL",
+  High: "🔴 HIGH",
+  Medium: "🟡 MEDIUM",
+  Low: "🟢 LOW",
+};
+
+// Attack type badge mapping
+const ATTACK_BADGES = {
+  "BENIGN": "🟢 BENIGN",
+  "DDOS": "🚨 DDoS",
+  "PORTSCAN": "🟠 PORTSCAN",
+  "BOT": "🟣 BOT",
+  "BRUTE FORCE": "🔴 BRUTE FORCE",
+};
+
+// Specific colors for attacks
+const ATTACK_COLORS = {
+  "BENIGN": "#22c55e",
+  "DDOS": "#ef4444",
+  "PORTSCAN": "#f97316",
+  "BOT": "#a855f7",
+  "BRUTE FORCE": "#e11d48",
+};
+
+const getAttackBadge = (name) => {
+  const upper = name?.toUpperCase() || "";
+  // Return matched badge, or default with red dot for unknown threats
+  return ATTACK_BADGES[upper] || `🔴 ${name}`;
+};
+
+const getAttackColor = (name, index) => {
+  const upper = name?.toUpperCase() || "";
+  return ATTACK_COLORS[upper] || CHART_COLORS[index % CHART_COLORS.length];
+};
+
 export default function UploadLogsPage() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [status, setStatus] = useState("idle");
@@ -53,6 +90,30 @@ export default function UploadLogsPage() {
   const [uploadResult, setUploadResult] = useState(null);
   const [analysisStatus, setAnalysisStatus] = useState("idle");
   const [analysisResult, setAnalysisResult] = useState(null);
+  const [isLoadingLatest, setIsLoadingLatest] = useState(true);
+
+  useEffect(() => {
+    const fetchLatest = async () => {
+      try {
+        const data = await getLatestUpload();
+        if (data && data.uploadResult) {
+          setUploadResult(data.uploadResult);
+          setSelectedFile({ name: data.uploadResult.filename.split("_").slice(1).join("_"), size: 0 }); // Mock file object for UI display
+          setStatus("done");
+          
+          if (data.analysisResult) {
+            setAnalysisResult(data.analysisResult);
+            setAnalysisStatus("done");
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch latest upload", err);
+      } finally {
+        setIsLoadingLatest(false);
+      }
+    };
+    fetchLatest();
+  }, []);
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -79,16 +140,13 @@ export default function UploadLogsPage() {
 
     try {
       const data = await uploadLogs(selectedFile);
-
-      console.log("UPLOAD RESPONSE:");
-      console.log(data);
-
       setUploadResult(data);
-
       setStatus("done");
     } catch (err) {
-      console.error(err);
       setStatus("error");
+      setErrorMessage(
+        err.response?.data?.detail || "An unexpected error occurred during upload."
+      );
     }
   };
 
@@ -126,7 +184,7 @@ export default function UploadLogsPage() {
     : [];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-10 w-full min-w-0">
       {/* ── Page Header ── */}
       <div>
         <h2 className="text-2xl font-bold">Upload Network Logs</h2>
@@ -135,11 +193,20 @@ export default function UploadLogsPage() {
         </p>
       </div>
 
-      {/* ── Upload Zone ── */}
-      <div className="bg-soc-surface border border-soc-border rounded-xl p-8">
+      {isLoadingLatest ? (
+        <div className="flex justify-center items-center h-40">
+          <svg className="animate-spin h-8 w-8 text-soc-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+      ) : (
+        <>
+          {/* ── Upload Zone ── */}
+          <div className="bg-soc-surface border border-soc-border rounded-xl p-8">
         <label
           htmlFor="file-upload"
-          className="flex flex-col items-center justify-center border-2 border-dashed border-slate-600 rounded-xl p-12 cursor-pointer hover:border-soc-accent transition-colors"
+          className="flex flex-col items-center justify-center border border-dashed border-slate-600/50 bg-slate-800/10 rounded-xl p-12 cursor-pointer hover:border-soc-accent hover:bg-soc-accent/5 transition-all duration-200"
         >
           <UploadCloud size={40} className="text-slate-500 mb-4" />
           <p className="text-sm font-medium text-slate-300">
@@ -183,7 +250,7 @@ export default function UploadLogsPage() {
                 <button
                   onClick={handleUpload}
                   disabled={status === "uploading" || status === "done"}
-                  className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white disabled:opacity-50 transition-opacity min-w-[140px] flex justify-center items-center gap-2"
+                  className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-soc-primary hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-soc-primary focus:ring-offset-2 focus:ring-offset-slate-900 shadow-md hover:shadow-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all min-w-[140px] flex justify-center items-center gap-2"
                 >
                   {status === "uploading" ? (
                     <>
@@ -193,19 +260,8 @@ export default function UploadLogsPage() {
                         fill="none"
                         viewBox="0 0 24 24"
                       >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        />
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                       </svg>
                       Uploading...
                     </>
@@ -224,7 +280,7 @@ export default function UploadLogsPage() {
                   <button
                     onClick={handleAnalyze}
                     disabled={analysisStatus === "analyzing" || analysisStatus === "done"}
-                    className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white disabled:opacity-50 transition-opacity min-w-[160px] flex justify-center items-center gap-2"
+                    className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-soc-accent hover:bg-cyan-600 text-white disabled:opacity-50 transition-colors min-w-[160px] flex justify-center items-center gap-2"
                   >
                     {analysisStatus === "analyzing" ? (
                       <>
@@ -234,19 +290,8 @@ export default function UploadLogsPage() {
                           fill="none"
                           viewBox="0 0 24 24"
                         >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          />
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                         </svg>
                         Analyzing...
                       </>
@@ -269,7 +314,7 @@ export default function UploadLogsPage() {
       </div>
 
       {/* ── Dataset Preview Table ── */}
-      {status === "done" && uploadResult && (
+      {status === "done" && uploadResult && analysisStatus === "idle" && (
         <div className="bg-soc-surface border border-soc-border rounded-xl overflow-hidden flex flex-col shadow-lg">
           <div className="p-5 border-b border-soc-border flex items-center justify-between bg-slate-800/50">
             <div className="flex items-center gap-2">
@@ -288,13 +333,10 @@ export default function UploadLogsPage() {
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-slate-800/80 text-xs text-slate-300 uppercase font-semibold">
+              <thead className="bg-soc-surface sticky top-0 text-xs text-slate-400 uppercase font-medium border-b border-soc-border">
                 <tr>
                   {uploadResult.columns.slice(0, 15).map((col) => (
-                    <th
-                      key={col}
-                      className="px-4 py-3 border-b border-slate-700"
-                    >
+                    <th key={col} className="px-4 py-3 border-b border-slate-700">
                       {col}
                     </th>
                   ))}
@@ -307,20 +349,10 @@ export default function UploadLogsPage() {
               </thead>
               <tbody className="divide-y divide-slate-800 text-slate-300">
                 {uploadResult.preview.map((row, idx) => (
-                  <tr
-                    key={idx}
-                    className="hover:bg-slate-800/40 transition-colors"
-                  >
+                  <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
                     {uploadResult.columns.slice(0, 15).map((col) => (
-                      <td
-                        key={col}
-                        className="px-4 py-2.5 max-w-[200px] truncate"
-                      >
-                        {row[col] !== null ? (
-                          String(row[col])
-                        ) : (
-                          <span className="text-slate-500">null</span>
-                        )}
+                      <td key={col} className="px-4 py-2.5 max-w-[200px] truncate">
+                        {row[col] !== null ? String(row[col]) : <span className="text-slate-500">null</span>}
                       </td>
                     ))}
                     {uploadResult.columns.length > 15 && (
@@ -341,92 +373,99 @@ export default function UploadLogsPage() {
           SPRINT 3 — Analysis Results
           ══════════════════════════════════════════════════════════════════ */}
       {analysisStatus === "done" && analysisResult && (
-        <div className="space-y-6">
-          {/* ── Summary Cards ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <SummaryCard
-              icon={<Database size={20} />}
-              label="Total Records"
-              value={analysisResult.total_records?.toLocaleString()}
-              accent="text-cyan-400"
-            />
-            <SummaryCard
-              icon={<AlertTriangle size={20} />}
-              label="Threats Detected"
-              value={analysisResult.threats_detected?.toLocaleString()}
-              accent="text-red-400"
-            />
-            <SummaryCard
-              icon={<Activity size={20} />}
-              label="Avg. Confidence"
-              value={
-                analysisResult.average_confidence
-                  ? `${(analysisResult.average_confidence * 100).toFixed(1)}%`
-                  : "N/A"
-              }
-              accent="text-violet-400"
-            />
-            <SummaryCard
-              icon={<Shield size={20} />}
-              label="Threat Level"
-              value={analysisResult.threat_level}
-              accent={
-                analysisResult.threat_level === "Critical"
-                  ? "text-red-400"
-                  : analysisResult.threat_level === "High"
-                    ? "text-orange-400"
-                    : analysisResult.threat_level === "Medium"
-                      ? "text-yellow-400"
-                      : "text-green-400"
-              }
-            />
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          
+          {/* ── Professional Info Mini-Cards ── */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <InfoCard icon={<FileText size={14} />} label="Dataset File" value={analysisResult.filename.split('_').slice(1).join('_') || analysisResult.filename} />
+            <InfoCard icon={<Database size={14} />} label="Dataset" value="CICIDS2017" />
+            <InfoCard icon={<Clock size={14} />} label="Analysis Time" value={`${analysisResult.analysis_duration} sec`} />
+            <InfoCard icon={<Cpu size={14} />} label="ML Model" value="XGBoost Classifier" />
           </div>
 
-          {/* ── Most Common Attack + Duration ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-soc-surface border border-soc-border rounded-xl p-5">
-              <p className="text-xs text-slate-400 uppercase font-semibold mb-1">
-                Most Common Attack
-              </p>
-              <p className="text-lg font-bold text-fuchsia-400">
-                {analysisResult.most_common_attack || "None"}
-              </p>
-            </div>
-            <div className="bg-soc-surface border border-soc-border rounded-xl p-5">
-              <p className="text-xs text-slate-400 uppercase font-semibold mb-1">
-                Analysis Duration
-              </p>
-              <p className="text-lg font-bold text-cyan-400">
-                {analysisResult.analysis_duration}s
-              </p>
-            </div>
-          </div>
-
-          {/* ── Threat Level Badge ── */}
-          {analysisResult.threat_level && (
-            <div
-              className={`flex items-center gap-3 rounded-xl border p-4 ${SEVERITY_COLORS[analysisResult.threat_level] || SEVERITY_COLORS.Low
-                }`}
-            >
-              <Shield size={22} />
-              <div>
-                <p className="text-sm font-bold">
-                  Overall Threat Level: {analysisResult.threat_level}
+          {/* ── Summary & SOC Assessment ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Main Assessment Card */}
+            <div className={`col-span-1 lg:col-span-2 rounded-2xl border p-6 flex flex-col justify-center bg-slate-800/40 shadow-sm relative overflow-hidden ${SEVERITY_COLORS[analysisResult.threat_level] || SEVERITY_COLORS.Low}`}>
+              <div className="flex items-center gap-3 mb-6 relative z-10">
+                <div className="bg-slate-900/50 p-2.5 rounded-xl border border-white/10">
+                  <Shield size={24} className="text-current" />
+                </div>
+                <h3 className="text-xl font-bold tracking-tight">🛡 SOC Assessment</h3>
+              </div>
+              
+              <div className="space-y-3 relative z-10">
+                <p className="font-medium text-slate-300 flex items-center gap-2">
+                  <span className="text-slate-100 font-bold text-lg">{analysisResult.total_records?.toLocaleString()}</span> flows analyzed
                 </p>
-                <p className="text-xs opacity-80 mt-0.5">
-                  {analysisResult.summary}
+                <p className="font-medium text-slate-300 flex items-center gap-2">
+                  <span className="text-slate-100 font-bold text-lg">{analysisResult.threats_detected?.toLocaleString()}</span> malicious flows detected
                 </p>
+                
+                <div className="h-px w-full bg-white/10 my-4"></div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-slate-400 block text-xs uppercase font-bold tracking-wider mb-1.5">Threat Level</span>
+                    <span className="font-bold text-lg">{THREAT_EMOJIS[analysisResult.threat_level] || analysisResult.threat_level}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-xs uppercase font-bold tracking-wider mb-1.5">Recommendation</span>
+                    <span className="text-slate-200 font-medium">
+                      {analysisResult.threat_level === "Low" ? "Continue monitoring." : 
+                       analysisResult.threat_level === "Medium" ? "Investigate flagged endpoints." : 
+                       "Immediate incident response required."}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
-          )}
+
+            {/* Top Threat Card */}
+            <div className="col-span-1 rounded-2xl border border-soc-border bg-soc-surface p-6 shadow-sm flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xs text-slate-400 uppercase font-bold tracking-wider">Top Threat</h3>
+                <AlertTriangle size={16} className="text-slate-500" />
+              </div>
+              
+              <div className="flex-1 flex flex-col justify-center">
+                {analysisResult.most_common_attack && analysisResult.most_common_attack !== "None" ? (
+                  <>
+                    <p className="text-2xl font-bold text-slate-100 mb-2 truncate">
+                      {getAttackBadge(analysisResult.most_common_attack)}
+                    </p>
+                    <p className="text-sm font-medium text-slate-400">
+                      <span className="text-fuchsia-400 font-bold">
+                        {analysisResult.attack_distribution?.[analysisResult.most_common_attack]?.toLocaleString()}
+                      </span> detections
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-2xl font-bold text-slate-400">
+                    🟢 None
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-soc-border">
+                 <p className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Model Confidence</p>
+                 <p className="text-lg font-bold text-violet-400">
+                   {analysisResult.average_confidence
+                      ? `${(analysisResult.average_confidence * 100).toFixed(2)}%`
+                      : "N/A"}
+                 </p>
+              </div>
+            </div>
+          </div>
 
           {/* ── Charts ── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Pie Chart — Attack Distribution */}
             {pieData.length > 0 && (
-              <div className="bg-soc-surface border border-soc-border rounded-xl p-6">
-                <h3 className="text-sm font-semibold text-slate-300 uppercase mb-4">
-                  Attack Distribution
+              <div className="bg-soc-surface border border-soc-border rounded-2xl p-6 shadow-sm">
+                <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-4">
+                  Threat Distribution
                 </h3>
                 <ResponsiveContainer width="100%" height={320}>
                   <PieChart>
@@ -434,28 +473,32 @@ export default function UploadLogsPage() {
                       data={pieData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60}
-                      outerRadius={110}
-                      paddingAngle={2}
+                      innerRadius={65}
+                      outerRadius={115}
+                      paddingAngle={3}
                       dataKey="value"
-                      label={({ name, percent }) =>
-                        `${name} (${(percent * 100).toFixed(1)}%)`
-                      }
+                      label={({ name, percent }) => {
+                        const p = percent * 100;
+                        const formatted = p > 0 && p < 0.1 ? p.toFixed(3) : p > 99.9 && p < 100 ? p.toFixed(3) : p.toFixed(1);
+                        return `${getAttackBadge(name)} ${formatted}%`;
+                      }}
                       labelLine={true}
                     >
-                      {pieData.map((_, index) => (
+                      {pieData.map((entry, index) => (
                         <Cell
                           key={`cell-${index}`}
-                          fill={CHART_COLORS[index % CHART_COLORS.length]}
+                          fill={getAttackColor(entry.name, index)}
                         />
                       ))}
                     </Pie>
                     <Tooltip
+                      formatter={(value, name) => [value.toLocaleString(), getAttackBadge(name)]}
                       contentStyle={{
-                        backgroundColor: "#1e293b",
-                        border: "1px solid #334155",
+                        backgroundColor: "#172033",
+                        border: "1px solid rgba(255,255,255,0.05)",
                         borderRadius: "8px",
-                        color: "#e2e8f0",
+                        color: "#F8FAFC",
+                        fontWeight: "500"
                       }}
                     />
                   </PieChart>
@@ -465,35 +508,39 @@ export default function UploadLogsPage() {
 
             {/* Bar Chart — Top Threats */}
             {barData.length > 0 && (
-              <div className="bg-soc-surface border border-soc-border rounded-xl p-6">
-                <h3 className="text-sm font-semibold text-slate-300 uppercase mb-4">
+              <div className="bg-soc-surface border border-soc-border rounded-2xl p-6 shadow-sm">
+                <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-4">
                   Top Detected Threats
                 </h3>
                 <ResponsiveContainer width="100%" height={320}>
-                  <BarChart data={barData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis type="number" stroke="#94a3b8" fontSize={12} />
+                  <BarChart data={barData} layout="vertical" margin={{ left: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={true} vertical={false} />
+                    <XAxis type="number" stroke="#94a3b8" fontSize={12} tickFormatter={(val) => val >= 1000 ? `${(val/1000).toFixed(0)}k` : val} />
                     <YAxis
                       dataKey="name"
                       type="category"
                       stroke="#94a3b8"
                       fontSize={11}
-                      width={140}
-                      tick={{ fill: "#cbd5e1" }}
+                      width={120}
+                      tickFormatter={(name) => getAttackBadge(name)}
+                      tick={{ fill: "#e2e8f0", fontWeight: 500 }}
                     />
                     <Tooltip
+                      formatter={(value, name) => [value.toLocaleString(), getAttackBadge(name)]}
                       contentStyle={{
-                        backgroundColor: "#1e293b",
-                        border: "1px solid #334155",
+                        backgroundColor: "#172033",
+                        border: "1px solid rgba(255,255,255,0.05)",
                         borderRadius: "8px",
-                        color: "#e2e8f0",
+                        color: "#F8FAFC",
+                        fontWeight: "500"
                       }}
+                      cursor={{fill: 'rgba(255,255,255,0.05)'}}
                     />
-                    <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-                      {barData.map((_, index) => (
+                    <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={24}>
+                      {barData.map((entry, index) => (
                         <Cell
                           key={`bar-${index}`}
-                          fill={CHART_COLORS[index % CHART_COLORS.length]}
+                          fill={getAttackColor(entry.name, index)}
                         />
                       ))}
                     </Bar>
@@ -504,18 +551,22 @@ export default function UploadLogsPage() {
           </div>
         </div>
       )}
+      </>
+      )}
     </div>
   );
 }
 
-/* ── Reusable Summary Card Component ── */
-function SummaryCard({ icon, label, value, accent }) {
+/* ── Reusable Info Card Component (Small) ── */
+function InfoCard({ icon, label, value }) {
   return (
-    <div className="bg-soc-surface border border-soc-border rounded-xl p-5 flex items-center gap-4">
-      <div className={`${accent} p-2.5 bg-slate-800 rounded-lg`}>{icon}</div>
-      <div>
-        <p className="text-xs text-slate-400 uppercase font-semibold">{label}</p>
-        <p className={`text-xl font-bold ${accent}`}>{value}</p>
+    <div className="bg-soc-surface border border-soc-border rounded-xl p-4 flex items-center gap-3 hover:bg-slate-800/60 transition-colors shadow-sm">
+      <div className="text-slate-400 bg-slate-900/50 p-2.5 rounded-lg border border-white/5">
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider truncate">{label}</p>
+        <p className="text-sm font-semibold text-slate-100 truncate" title={value}>{value}</p>
       </div>
     </div>
   );
