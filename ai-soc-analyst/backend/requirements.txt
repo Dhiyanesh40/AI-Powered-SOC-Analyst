@@ -7,3 +7,7 @@ python-dotenv
 python-multipart
 aiofiles
 pandas
+numpy
+scikit-learn
+xgboost
+joblib

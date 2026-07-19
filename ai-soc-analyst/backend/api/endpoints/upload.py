@@ -46,6 +46,7 @@ async def upload_csv(
         raise HTTPException(status_code=400, detail="Only CSV files are allowed.")
     
     logger.info("File received: %s", file.filename)
+    logger.info("STEP 1 - File received")
 
     # Generate unique filename
     unique_filename = f"{uuid.uuid4()}_{file.filename}"
@@ -55,6 +56,7 @@ async def upload_csv(
     try:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
+        logger.info("STEP 2 - File saved successfully")
     except Exception as e:
         logger.error(f"Failed to save file: {e}")
         raise HTTPException(status_code=500, detail="Failed to save uploaded file.")
@@ -65,6 +67,7 @@ async def upload_csv(
     try:
         # Read only the first 10 rows to extract columns and preview
         df_preview = pd.read_csv(file_path, nrows=10)
+        logger.info("STEP 3 - CSV preview loaded")
     except Exception as e:
         logger.error(f"Failed to read CSV preview: {e}")
         # Clean up the bad file
@@ -81,6 +84,7 @@ async def upload_csv(
 
     # Efficiently count total records (subtracting 1 for the header)
     total_lines = count_file_lines(file_path)
+    logger.info("STEP 4 - Counted file lines")
     total_records = max(0, total_lines - 1)
 
     # Store metadata. The instruction explicitly said "Store upload metadata in the SecurityLog table" 
@@ -102,7 +106,10 @@ async def upload_csv(
         created_at=datetime.utcnow()
     )
     db.add(analysis_record)
+    logger.info("STEP 5 - About to commit database")
     db.commit()
+    logger.info("STEP 6 - Database commit successful")
+    logger.info("STEP 7 - Returning response")
 
     return UploadResponse(
         filename=unique_filename,
